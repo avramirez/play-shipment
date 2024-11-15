@@ -49,7 +49,7 @@ class HomeController @Inject()(val controllerComponents: ControllerComponents) e
       result <- fileShipments match {
         case Some(shipments) => {
 
-          val combinationSize = request.body.asFormUrlEncoded.get("carrierCombination").flatMap(_.headOption).map(_.toInt).getOrElse(2) //TODO: PROPER Validation, for now just default to 2 if nothing is found.
+          val combinationSize = request.body.asFormUrlEncoded.get(FormFields.CARRIER_COMBINATION).flatMap(_.headOption).map(_.toInt).getOrElse(2) //TODO: PROPER Validation, for now just default to 2 if nothing is found.
 
           for {
             minimumCost <- ShipmentService.findMinCostCombination(shipments, Rates.PROVIDER_RATES, CARRIERS, combinationSize = combinationSize)
@@ -73,6 +73,7 @@ class HomeController @Inject()(val controllerComponents: ControllerComponents) e
 object HomeController {
   private object FormFields {
     val SHIPMENT_FILE = "shipmentFile"
+    val CARRIER_COMBINATION = "carrierCombination"
   }
 
   object ErrorMessages {
