@@ -1,0 +1,30 @@
+@()
+
+@main("Welcome to Play") {
+  <h1>Welcome to Play!</h1>
+
+  @helper.form(action = routes.HomeController.upload(), Symbol("enctype") -> "multipart/form-data") {
+
+    <input type="file" name="shipmentFile">
+    <button type="submit">Upload</button>
+
+  }
+
+
+  <br />
+  @helper.form(action = routes.HomeController.uploadMinimum(), Symbol("enctype") -> "multipart/form-data") {
+
+    <input type="file" name="shipmentFile">
+
+    <div>
+      <input type="radio" id="twoCarriers" name="carrierCombination" value="2" checked>
+      <label for="twoCarriers">2 Carriers</label>
+
+      <input type="radio" id="threeCarriers" name="carrierCombination" value="3">
+      <label for="threeCarriers">3 Carriers</label>
+    </div>
+
+    <button type="submit">Upload</button>
+
+  }
+}
