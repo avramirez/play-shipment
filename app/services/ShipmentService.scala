@@ -47,42 +47,30 @@ object ShipmentService extends Logging {
 
     val rateMemo: mutable.Map[(String, String), Option[Double]] = mutable.Map()
 
-    val combinationsCostPerCountry = carriers.combinations(combinationSize).toList.flatMap { carrierCombination =>
-      val totalCostByCountry = shipments.groupBy(_.countryCode).map { case (countryCode, countryShipments) =>
-        val totalCost = countryShipments.map { shipment =>
-          // Calculate the minimum cost for the shipment across all carriers in the combination
-          carrierCombination.flatMap { carrier =>
-
-            //Use the cached rate of the shipment
-            val rateMemoKey = (shipment.shipmentNumber, carrier)
-            rateMemo.get(rateMemoKey) match {
-              case Some(rate) => rate
-              case None => {
-                val rate = calculateShipmentCost(shipment, rates, countryCode, carrier).map(_.rate.price)
-                rateMemo(rateMemoKey) = rate
-                rate
-              }
-            }
-
-          }.min
-        }.sum
-
-        (countryCode, (carrierCombination, totalCost))
-      }
-      totalCostByCountry
-    }.groupBy { case (countryCode, _) =>
-      countryCode // Group by country code (._1)
-    }.mapValues { countryCosts =>
-
-      // Find the minimum cost combination for each country
-      countryCosts.minBy { case (_, (_, totalCost)) =>
-        totalCost // Extract the total cost from (carrierCombination, totalCost) tuple (._2._2)
-      }._2 // Get the (carrierCombination, totalCost) tuple (._2)
+    def getRate(shipment: Shipment, carrier: String): Option[Double] = {
+      val key = (shipment.shipmentNumber, carrier)
+      rateMemo.getOrElseUpdate(key, calculateShipmentCost(shipment, rates, shipment.countryCode, carrier).map(_.rate.price))
     }
 
-    // Map results to CarrierCombinationSummary case class instances
-    combinationsCostPerCountry.map { case (countryCode, (carrierCombination, totalCost)) =>
+    def calculateTotalCostForCombination(carrierCombination: Seq[String], countryShipments: Seq[Shipment]): Double = {
+      countryShipments.flatMap { shipment =>
+        carrierCombination.flatMap(carrier => getRate(shipment, carrier)).minOption
+      }.sum
+    }
+
+    def getCombinationsCostForCountry(carriers: Seq[String]): Map[String, (Seq[String], Double)] = {
+      carriers.combinations(combinationSize).toList.flatMap { carrierCombination =>
+        shipments.groupBy(_.countryCode).map { case (countryCode, countryShipments) =>
+          val totalCost = calculateTotalCostForCombination(carrierCombination, countryShipments)
+          (countryCode, (carrierCombination, totalCost))
+        }
+      }.groupBy(_._1).view.mapValues(_.minBy(_._2._2)._2).toMap
+    }
+
+
+    getCombinationsCostForCountry(carriers).map { case (countryCode, (carrierCombination, totalCost)) =>
       CarrierCombinationSummary(countryCode, carrierCombination, totalCost)
     }.toSeq
+
   }
 }
